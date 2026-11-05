@@ -1,0 +1,6 @@
+# Inserts the Claude Sessions bundle: the Host half owns the `claude -p` work
+# items, the Client half draws the list and the detail panel.
+- insert:
+    - id: claude-sessions
+      name: '@local/dsh-plugin-claude-sessions'
+      config: {}

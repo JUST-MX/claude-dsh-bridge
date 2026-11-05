@@ -1,0 +1,10 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://your-gateway.example.com",
+    "ANTHROPIC_AUTH_TOKEN": "sk-your-token",
+    "ANTHROPIC_MODEL": "your-model",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "your-model",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "your-model",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "your-model"
+  }
+}

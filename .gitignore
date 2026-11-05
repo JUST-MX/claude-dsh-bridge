@@ -1,0 +1,20 @@
+# Working notes: environment facts, decision records and implementation logs.
+# They are a log of one machine's setup (local paths, private endpoints), so
+# they stay on disk but out of the published tree.
+docs/
+
+# Reverse-engineering dumps and one-off probe leftovers.
+#
+# `.research/` holds extracted `app.asar` bundles and CLI probes (a few MB of
+# third-party code that is not ours to version); `research/` is a single 6 MB
+# transcript from an earlier session. Both are reproducible, neither is source.
+.research/
+research/
+
+# Guard scratch space.
+*.log
+.tmp-*
+*.bak
+
+# Node
+node_modules/

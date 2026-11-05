@@ -1,0 +1,39 @@
+{
+  "name": "@local/dsh-plugin-claude-sessions",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Claude Code work items opened inside DeepSeek Harness: a sidebar panel with resident sessions, their state, their transcript, and their approvals.",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json",
+    "./typert": "./typert.js",
+    "./remote": "./remote.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "typert.js",
+    "remote.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
+    }
+  }
+}

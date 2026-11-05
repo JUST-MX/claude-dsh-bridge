@@ -1,8 +1,8 @@
 ﻿<#
 install-cc.ps1 —— 把 cc 命令装进用户 PATH
 
-⚠️ 必须在【普通 PowerShell】里跑，不要在被沙箱限制的 agent 会话里跑。
-   当前 agent 沙箱对 %LOCALAPPDATA%、用户 PATH 注册表都是拒绝写入的。
+⚠️ 必须在【普通 PowerShell】里跑，不要在受限的 agent 会话里跑。
+   受限环境对 %LOCALAPPDATA%、用户 PATH 注册表通常拒绝写入。
 
 用法：
   powershell -ExecutionPolicy Bypass -File install-cc.ps1 -DryRun   # 只打印要做什么

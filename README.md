@@ -366,11 +366,11 @@ node tools/gen-locale.mjs     # locale/en.json / locale/zh.json
 |---|---|
 | `bypassPermissions` | 用不了 —— 除非启动就带 `--dangerously-skip-permissions`。所以「本会话总是允许」是 Host 侧 `allowRules` 记忆，不是真正的 permission mode |
 | 像素级外观 | 文字逐字核对过；颜色只核对到"用的是主题里真实存在的 token"，**没有**在屏幕上验证过对比度 |
-| 截屏 | 在本机做不到：`SetForegroundWindow` / `SetWindowPos(HWND_TOPMOST)` / `PrintWindow(PW_RENDERFULLCONTENT)` 全返回 `False` |
+| 截屏 | 无桌面交互权限时做不到：`SetForegroundWindow` / `SetWindowPos(HWND_TOPMOST)` / `PrintWindow(PW_RENDERFULLCONTENT)` 全返回 `False` |
 | ~~会话恢复~~ | ✅ **已改**：`-p` 其实会写 `~/.claude/projects/<slug>/<id>.jsonl`（CLI 2.1.310 实测，见 `tools/probe-resume.mjs`），重开时先探这个文件在不在，在就 `--resume`。transcript 不在（换机、清过 `~/.claude`）才退回旧办法 |
 | 退回时的上下文上限 | 只在 transcript 缺失时才有这一条：只带最近约 4000 字符（每条最多 600 字） |
 | 问题作答的真机验证 | 停靠这一半已真机确认（`cc-askprobe` 上 `waiting-approval ← AskUserQuestion`，现仍停在「苹果/香蕉」这题）；**回传答案**这一半只验到载荷形状（从 `claude.exe` 读出的 `updatedInput.answers`），还没在面板上点过一次「发送答案」 |
-| profile 里的历史残留 | `cordis.patch.yml` 末尾有两行 `- id: cc-diag / cc-probe3` + `disabled: true`，是早期探针留下的空操作条目（指向不存在的 entry，无害）。沙箱不允许写 `%USERPROFILE%\.dsh`，需要的话手动删掉那 4 行 |
+| profile 里的历史残留 | `cordis.patch.yml` 末尾有两行 `- id: cc-diag / cc-probe3` + `disabled: true`，是早期探针留下的空操作条目（指向不存在的 entry，无害）。受限环境下可能写不了 `~/.dsh`，需要的话手动删掉那 4 行 |
 
 ---
 
@@ -397,7 +397,7 @@ node tools/gen-locale.mjs     # locale/en.json / locale/zh.json
    实际是**协议层缺字段**。证据只能从 CLI 本体里读（`grep-cli.mjs` 分块扫 296 MB）。
 10. **在一个已经结束的会话上打字不是错误，是"重开"**。旧 `send()` 抛
    `work item … is not running`，看起来像 bug，其实是把"没有进程"当成"非法操作"。
-11. **沙箱里子进程不能带管道**（`probe-stdio.mjs` 实测 `EPERM`），所以任何
+11. **受限环境下子进程不能带管道**（`probe-stdio.mjs` 实测 `EPERM`），所以任何
    `spawnSync(..., {encoding:'utf8'})` 都会报 `status: null`；守卫必须用 `stdio:'inherit'`。
     真正要起 `claude` 的是 DSH 自己（Host 半在 DSH 进程内 spawn，不受这条限制）。
 12. **一次拒绝会在流上出现两次**。`system/permission_denied`（带 `tool_name`）和模型读到的
@@ -425,5 +425,5 @@ powershell -File <本项目>\tools\cc.ps1 new 登录重构   # 建 worktree + �
 powershell -File <本项目>\tools\cc.ps1 ls             # 一屏看后台会话 + 所有 worktree
 ```
 
-> ⚠️ 本机**没有 pwsh 7**，上面用 `powershell`（5.1）。另外 `--bg` 需要目录已 trust 且
-> `~/.claude/jobs` 可写 —— 两条当前都不满足，所以 `bg/at/log` 暂时用不了。
+> ⚠️ 没有 pwsh 7 的环境下可用 `powershell`（5.1）。另外 `--bg` 需要目录已 trust 且
+> `~/.claude/jobs` 可写 —— 两条不满足时 `bg/at/log` 用不了。

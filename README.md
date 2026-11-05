@@ -3,20 +3,17 @@
 把 **Claude Code 会话**接进 **DeepSeek Harness**：在 DSH 里一屏看到所有 Claude 会话的状态，
 点开就在右侧面板里对话，不用再 alt-tab 找窗口。
 
-> 这是一个 **DSH 插件**，装得上、拔得掉。本文件是交付说明与入口。
+> 这是一个 **DSH 插件**，方便管理你的claude shell，前提是你装了claude；
+> 众所周知的原因cn当前不便用cc客户端，那让你cc里的ds回到自己家里有什么问题？
 
 ---
 
 ## 一句话结论
-
-**不要装 Claude 桌面端。写一个 DSH 插件。**
-
 实现方式是 **DSH 自己用 Claude Code 的 SDK 模式起常驻会话**
 （`claude -p --input-format stream-json --output-format stream-json --permission-prompt-tool stdio`），
 不是扫别人的 transcript，也不是 `claude --bg`。
 
 - Claude 桌面端在国区登录被墙（`claude.ai` 302 → `app-unavailable-in-region`），
-  且 Code 标签页启动时要从 `downloads.claude.ai` 拉运行时（这台机器**超时**）。
 - DSH 本身就是个可插拔的 agent 宿主，**已经有面板槽位、进程服务、会话持久化**。
 - 边界：**只跟踪从 DSH 里打开的 CC 工作项**，外面自己开的 pwsh 不管。
   → 这使常驻进程成为唯一正确底座（状态精确、可批准、可打断）。
@@ -241,67 +238,6 @@ plugin/packages/claude-sessions/
 | 已放行工具 | 审批卡片下方列出本会话已记住的工具，不必翻事件日志才知道为什么没再问 |
 | 允许智能体仍显示未作答 | 见下节：`AskUserQuestion` 要的是答案，不是批准 |
 
-### 审批按钮为什么从黑改成黄
-
-原来「允许」用的是和「新建工作项」同一个 `--dsw-alias-brand-primary`（亮色近黑、
-暗色近白）。两个问题：一是那个黑按钮的 hover 规则对所有按钮统一生效，鼠标指上去
-背景变浅、文字还是浅色，字直接消失；二是整屏最不可逆的那个动作看起来跟普通按钮
-没区别。
-
-现在：`.ccw-btn:hover` 只改中性按钮的底色，彩色按钮各自写自己的 hover；
-「允许」和「发送答案」改用 `--dsw-alias-state-warn-primary`（和审批框的边框同色），
-文字为白色、字重 600。
-
-白字在 amber-500（`#f59e0b`）上只有约 2.0:1，低于任何对比度门槛 —— 所以 hover 是
-**变暗**而不是变亮（`brightness(.88)` → 约 2.6:1），并且把字重提到 600，让标签在
-填色上还能一眼分开。哪天觉得发灰，往下走同一色阶的 amber-600（`#dd8629`）能把白字
-提到 2.8:1，改一个 token 就够。
-
-### 时间戳为什么一开始看不见
-
-第一版用的 `--dsw-alias-label-dimmed`。查色板才知道那是**最淡的一档**：
-亮色主题下是 `#e1e5ee` —— 在白底上几乎就是白色，等于没画。
-暗色主题下是 `#43454a`，同样偏暗。
-
-现在换成 `--dsw-alias-label-tertiary`（亮色 `#81858c`、暗色 `#adb2b8`），
-字号从 9.5px 提到 10.5px；答案下的用量行同步提到 secondary 一档，
-因为 tertiary 压在紫色底上同样偏淡。
-
-### 折叠标题与答案同字号
-
-折叠那一行就是提问本身，第一版是 12px 灰色，而它下面的答案是 13.5px 紫色 ——
-视觉上提问像是答案的说明文字。现在标题 13.5px、字重 600、主色，与答案同尺寸；
-展开之后那条 `user` 行仍是你指定的深蓝。
-
-### 端点断了的时候，面板原来什么也不说
-
-用户实测：某条会话的 API 其实是断的，面板显示「运行中」却没有任何记录，
-而 Claude Code 自己在后台反复重连 —— 这些重连只在终端里看得见。
-
-用 `tools/probe-retry.mjs` 探出来的事实（这个方法本身值得记：把
-`CLAUDE_CONFIG_DIR` 指到一个临时目录、里面写一份指向死端点的 `settings.json`，
-因为 **`~/.claude/settings.json` 的 `env` 优先级高于进程环境变量**，
-只设 `ANTHROPIC_BASE_URL` 是无效的，第一次探测就因此拿到了正常回答）：
-
-| CLI 真的发了什么 | 面板原来怎么处理 |
-|---|---|
-| `{"type":"system","subtype":"api_retry","attempt":1,"max_retries":2,"retry_delay_ms":603,"error_status":null,"error":"unknown"}` | **丢弃**（`system` 只认 `init` 和 `permission_denied`） |
-| 同上，但端点挂住不响应时多一个 `no_response:{waited_ms,retry_wait_ms}` | 丢弃 |
-| `{"type":"assistant","is_api_error_message":true,...}`，正文是 `API Error: Connection refused` | 当成 Claude 说的话写进对话 |
-| `{"type":"result","is_error":true,"terminal_reason":"api_error",...}` | 记成 `denied`（「已拒绝」） |
-
-四条全错，症状就是「显示运行中但无响应」。现在的处理：
-
-- `api_retry` → 一行 `重连`：`attempt 1/3 · retry in 0.6s · HTTP 503`；
-  挂住时 `· no response in 25.0s`（这个细节才是真正的诊断，
-  把「等了 25 秒没收到响应头」和「服务端回了 503」分开）
-- 合成 assistant → `api-error` 行（红色），不再冒充 Claude 的答复
-- `terminal_reason:"api_error"` → 新状态 `error`（接口错误，红）
-- `system/informational` 只留 `warning` / `suggestion`（`info` 和 `notice` 是纯转录噪声）
-
-顺带修正：一轮的收尾行现在既可以是 `result` 也可以是 `api-error`，
-两者都作为「这轮的产物」留在折叠标题下面 —— 需要点开才看得见的错误，等于没报。
-
 ### 每轮用量是 delta，不是累计
 
 CLI 的 `result` 记录里 `usage` 是**整个进程累计**的：第 3 轮报的是 1–3 轮之和。
@@ -313,34 +249,6 @@ CLI 的 `result` 记录里 `usage` 是**整个进程累计**的：第 3 轮报�
 `duration_ms - ttft_ms`，即「真正在生成的时间」，而不是含排队与首字等待的墙钟。
 换新进程（会话结束后重开）时累计基线会一起归零，否则新进程第一轮算出来的增量是 0，
 用量行会静默变空。
-
-### 紫色是哪来的
-
-调色板里**没有**紫色 alias（`--dsw-alias-*` 只有 amber/blue/green/neutral/red/deepseek 家族）。
-`tools/find-hue.mjs 250 300` 在 120 KB 主题包里只找到两个紫色字面量 ——
-shiki 语法高亮的 `--shiki-token-function`：亮色 `#6741d9`、暗色 `#b197fc`。
-面板因此把它声明成**自己的局部属性** `--ccw-answer`（亮暗各一档），
-并把 `check-theme.mjs` 扩成「`--ccw-*` 必须在同文件里声明过」——否则读一个没人定义的名字仍然会静默 fallback。
-
-### 允许智能体为什么显示「未作答」
-
-不是面板没发批准，而是**批准本身不够**。读 296 MB 的 `claude.exe` 能看到：
-`AskUserQuestion.call({ answers })` 从**入参**里取答案，`answers` 是
-`question 文本 → 答案字符串`（多选用逗号分隔，见 CLI 自己的 schema
-`"multi-select answers are comma-separated"`），全部为空才打印
-`The user did not answer the questions.`。
-
-所以 `approve` 永远治不好这个症状 —— 它只把权限给了，没把答案给。
-新增第 11 个 Remote 方法 `answer(id, answers)`，把选中的 label 塞进
-`control_response.response.updatedInput.answers`：
-
-```
-answer(id, [{ question, picked: [label, …] }, …])   → { item }
-```
-
-面板这边：`AskUserQuestion` 的停靠请求渲染成**选择卡片**（题干、`header` 标签、
-单选/多选、选项说明），逐题选完才让点「发送答案」，点下去调 `answer`。
-非问题类工具仍是原来的「允许 / 拒绝 / 本会话总是允许该工具」。
 
 ---
 
